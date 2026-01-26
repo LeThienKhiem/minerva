@@ -14,7 +14,7 @@ export default async function Home() {
   const projects = await getProjects();
 
   return (
-    <div className="relative min-h-screen bg-black text-white">
+    <div className="relative min-h-screen w-full overflow-x-hidden bg-black text-white">
       <CustomCursor />
       <Hero />
       <section id="services">
