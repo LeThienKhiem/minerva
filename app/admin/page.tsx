@@ -26,7 +26,7 @@ const emptyProject: ProjectFormState = {
 };
 
 export default function AdminPage() {
-  const [sessionEmail, setSessionEmail] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [projects, setProjects] = useState<Project[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -37,30 +37,18 @@ export default function AdminPage() {
   const isEditing = useMemo(() => Boolean(formState.id), [formState.id]);
 
   useEffect(() => {
-    const init = async () => {
-      const { data } = await supabase.auth.getSession();
-      setSessionEmail(data.session?.user.email ?? null);
-      setIsLoading(false);
-    };
-
-    init();
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSessionEmail(session?.user.email ?? null);
-      }
-    );
-
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
+    const saved = sessionStorage.getItem("admin_auth");
+    if (saved === "true") {
+      setIsAuthenticated(true);
+    }
+    setIsLoading(false);
   }, []);
 
   useEffect(() => {
-    if (sessionEmail) {
+    if (isAuthenticated) {
       fetchProjects();
     }
-  }, [sessionEmail]);
+  }, [isAuthenticated]);
 
   const fetchProjects = async () => {
     const { data, error } = await supabase
@@ -86,21 +74,29 @@ export default function AdminPage() {
   const handleSignIn = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    const email = String(formData.get("email") ?? "");
     const password = String(formData.get("password") ?? "");
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const res = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
 
-    if (error) {
-      alert(error.message);
+      if (res.ok) {
+        sessionStorage.setItem("admin_auth", "true");
+        setIsAuthenticated(true);
+      } else {
+        alert("Wrong password");
+      }
+    } catch {
+      alert("Login failed");
     }
   };
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
+  const handleSignOut = () => {
+    sessionStorage.removeItem("admin_auth");
+    setIsAuthenticated(false);
     setProjects([]);
   };
 
@@ -206,24 +202,12 @@ export default function AdminPage() {
     return <div className="min-h-screen bg-black text-white" />;
   }
 
-  if (!sessionEmail) {
+  if (!isAuthenticated) {
     return (
       <main className="min-h-screen bg-black px-6 py-24 text-white">
         <div className="mx-auto w-full max-w-md rounded-3xl border border-white/10 bg-white/5 p-8">
           <h1 className="text-2xl font-bold uppercase">Admin Login</h1>
           <form className="mt-6 space-y-4" onSubmit={handleSignIn}>
-            <div className="space-y-2">
-              <label className="text-sm font-semibold uppercase text-white/70">
-                Email
-              </label>
-              <input
-                name="email"
-                type="email"
-                required
-                className="w-full rounded-lg border border-white/10 bg-black px-4 py-3 text-white"
-                placeholder="you@minerva.web3"
-              />
-            </div>
             <div className="space-y-2">
               <label className="text-sm font-semibold uppercase text-white/70">
                 Password
@@ -254,7 +238,7 @@ export default function AdminPage() {
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-3xl font-bold uppercase">Projects CMS</h1>
-            <p className="text-sm text-white/60">Signed in as {sessionEmail}</p>
+            <p className="text-sm text-white/60">Admin Panel</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <button

@@ -16,6 +16,9 @@ const navLinks = [
 ];
 const bottomLinks = ["PRIVACY", "TERMS", "CREDITS"];
 
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+const logoUrl = `${supabaseUrl}/storage/v1/object/public/project-images/logo-footer.png`;
+
 export default function Footer() {
   const handleBackToTop = () => {
     if (typeof window !== "undefined") {
@@ -44,7 +47,7 @@ export default function Footer() {
           <div className="flex flex-col items-center gap-6 text-center">
             <div className="flex flex-col items-center gap-3">
               <Image
-                src="https://asbdbqzxgncwphuiuuiw.supabase.co/storage/v1/object/public/project-images/logo-footer.png"
+                src={logoUrl}
                 alt="Minerva logo"
                 width={220}
                 height={70}
