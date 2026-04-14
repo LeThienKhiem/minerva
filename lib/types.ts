@@ -6,4 +6,5 @@ export interface Project {
   achievements: string[];
   main_image: string;
   gallery: string[];
+  status: "draft" | "published";
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  FileText,
   LogOut,
   Pencil,
   Plus,
@@ -23,6 +24,7 @@ const emptyProject: ProjectFormState = {
   achievements: [""],
   main_image: "",
   gallery: [],
+  status: "draft",
 };
 
 export default function AdminPage() {
@@ -122,49 +124,62 @@ export default function AdminPage() {
     return publicData.publicUrl;
   };
 
+  const saveProject = async (status: "draft" | "published") => {
+    try {
+      let mainImageUrl = formState.main_image;
+      if (mainImageFile) {
+        mainImageUrl = await uploadFile(mainImageFile);
+      }
+
+      let galleryUrls = formState.gallery;
+      if (galleryFiles.length > 0) {
+        const uploads = await Promise.all(galleryFiles.map(uploadFile));
+        galleryUrls = uploads;
+      }
+
+      const payload = {
+        title: formState.title,
+        category: formState.category,
+        description: formState.description,
+        achievements: formState.achievements.filter(Boolean),
+        main_image: mainImageUrl,
+        gallery: galleryUrls,
+        status,
+      };
+
+      if (isEditing && formState.id) {
+        const { error } = await supabase
+          .from("projects")
+          .update(payload)
+          .eq("id", formState.id);
+
+        if (error) {
+          alert("Update error: " + error.message);
+          return;
+        }
+      } else {
+        const { error } = await supabase.from("projects").insert(payload);
+        if (error) {
+          alert("Insert error: " + error.message);
+          return;
+        }
+      }
+
+      await fetchProjects();
+      resetModal();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      alert("Error: " + message);
+    }
+  };
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    await saveProject("published");
+  };
 
-    let mainImageUrl = formState.main_image;
-    if (mainImageFile) {
-      mainImageUrl = await uploadFile(mainImageFile);
-    }
-
-    let galleryUrls = formState.gallery;
-    if (galleryFiles.length > 0) {
-      const uploads = await Promise.all(galleryFiles.map(uploadFile));
-      galleryUrls = uploads;
-    }
-
-    const payload = {
-      title: formState.title,
-      category: formState.category,
-      description: formState.description,
-      achievements: formState.achievements.filter(Boolean),
-      main_image: mainImageUrl,
-      gallery: galleryUrls,
-    };
-
-    if (isEditing && formState.id) {
-      const { error } = await supabase
-        .from("projects")
-        .update(payload)
-        .eq("id", formState.id);
-
-      if (error) {
-        alert(error.message);
-        return;
-      }
-    } else {
-      const { error } = await supabase.from("projects").insert(payload);
-      if (error) {
-        alert(error.message);
-        return;
-      }
-    }
-
-    await fetchProjects();
-    resetModal();
+  const handleSaveDraft = async () => {
+    await saveProject("draft");
   };
 
   const handleDelete = async (projectId: number) => {
@@ -267,6 +282,7 @@ export default function AdminPage() {
                 <th className="px-4 py-3">ID</th>
                 <th className="px-4 py-3">Title</th>
                 <th className="px-4 py-3">Category</th>
+                <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
@@ -277,6 +293,17 @@ export default function AdminPage() {
                   <td className="px-4 py-3 font-semibold">{project.title}</td>
                   <td className="px-4 py-3 text-white/60">
                     {project.category}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`inline-block rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wider ${
+                        project.status === "published"
+                          ? "bg-green-500/20 text-green-400"
+                          : "bg-yellow-500/20 text-yellow-400"
+                      }`}
+                    >
+                      {project.status ?? "draft"}
+                    </span>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-2">
@@ -303,7 +330,7 @@ export default function AdminPage() {
               {projects.length === 0 && (
                 <tr>
                   <td
-                    colSpan={4}
+                    colSpan={5}
                     className="px-4 py-8 text-center text-white/60"
                   >
                     No projects yet.
@@ -594,11 +621,19 @@ export default function AdminPage() {
                   Cancel
                 </button>
                 <button
+                  type="button"
+                  onClick={handleSaveDraft}
+                  className="flex items-center gap-2 rounded-full border border-yellow-500/40 px-5 py-2 text-xs font-bold uppercase tracking-[0.2em] text-yellow-400"
+                >
+                  <FileText className="h-4 w-4" />
+                  Save as Draft
+                </button>
+                <button
                   type="submit"
                   className="flex items-center gap-2 rounded-full bg-orange-500 px-5 py-2 text-xs font-bold uppercase tracking-[0.2em] text-black"
                 >
                   <Save className="h-4 w-4" />
-                  {isEditing ? "Save Changes" : "Create Project"}
+                  {isEditing ? "Publish" : "Create & Publish"}
                 </button>
               </div>
             </form>

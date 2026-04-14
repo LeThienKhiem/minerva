@@ -25,6 +25,7 @@ export const getProjects = async (): Promise<Project[]> => {
   const { data, error } = await supabase
     .from("projects")
     .select("*")
+    .eq("status", "published")
     .order("id", { ascending: true });
 
   if (error) {
